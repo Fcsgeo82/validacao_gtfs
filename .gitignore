@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Output files from GTFS validation scripts
+*.zip
+*.pdf
+*.csv
+*.json
+
+# Other potential output files
+*.log
+*.tmp
