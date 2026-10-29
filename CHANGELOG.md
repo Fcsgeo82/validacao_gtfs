@@ -6,6 +6,30 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [4.0.1] - 2026-10-27
+
+### Adicionado
+- **`2_comparar_os_gtfs.py`** — campo `consorcio` incluído no relatório `relatorio_<prefixo>_servicos.csv`. O consórcio é extraído diretamente da OS (coluna `Consórcio`/`Consorcio`) com fallback automático para o GTFS via cruzamento `trips.txt` → `routes.txt` → `agency.txt` (`agency_name`), garantindo cobertura completa inclusive para serviços `SO_GTFS_NA_OS`.
+
+### Corrigido
+- **`2_comparar_os_gtfs.py`** — corrigida a fórmula padrão de reexpansão de `frequencies.txt` de `"floor"` para `"ceil"`. Algebricamente, o loop `while current_time < end` do `7_lista_partidas.py` gera exatamente $\lceil (end - start) / hw \rceil$ partidas. O cálculo anterior com divisão inteira (`//`) truncava o último índice $k$ sempre que a duração da janela não era múltiplo exato do headway, omitindo partidas válidas dentro da janela horária (ex.: linhas 329, 780 e SP759 na faixa `01h-02h`). Com `ceil`, as divergências onde `OS > GTFS` no Dia Útil caíram de 3 para 0.
+- **`2_comparar_os_gtfs.py`** — corrigido `NameError` na linha 553 (`tem_total = any(t == t2 for (t2, _) in totais_por_tipo)`): a variável `t` não existia no escopo de avaliação da generator expression. A condição foi corrigida para `tem_total = any(t == tipo for (t, _) in totais_por_tipo)`, permitindo a comparação correta quando a OS utiliza o formato Resumo por Dia (colunas de total por sentido).
+
+---
+
+## [4.0.0] - 2026-10-22
+
+### Adicionado
+- **`2_comparar_os_gtfs.py`** — novo item do pipeline: compara o **conteúdo de partidas da OS × GTFS** (não só a presença da linha) para **todos os tipos de dia** — Dia Útil→`U_REG`, Sábado→`S_REG`, Domingo→`D_REG`, Ponto Facultativo→`F_REG` (mapa configurável via `mapa_dia_servico`). Reexpande `frequencies.txt` com a convenção `floor` do `7_lista_partidas.py` do `processar_gtfs` (+ viagens timetable pela primeira saída em `stop_times.txt`) e classifica cada serviço (`EM_<ID>`, `SO_EXCEP_EVENTO`, `SEM_<ID>_NO_GTFS`, `SO_GTFS_NA_OS`) com células (serviço × sentido × faixa) `n_os`/`n_gtfs`/`dif`. Saídas: `relatorio_<prefixo>_servicos.csv`, `relatorio_<prefixo>_celulas.csv` e `resumo_<prefixo>.txt`; `exit 1` quando há serviços da OS sem cobertura (desligável com `fail_se_ausente=false`).
+- Entradas **sem hardcode**: default `OS.csv` e `GTFS.zip` na raiz do projeto, com auto-detecção de fallback (`tabela_programacao_OS.csv` > `tabela_*.csv` > outros `.csv`; zips com `routes/trips/stops`). Separação (`;`/`,`), encoding (`utf-8-sig`/`latin-1`) e formato de coluna da OS auto-detectados: `partidas 00:00-01:00 - Dia Útil` (tabela_programacao), `Partidas 00h à 01h - Dia Útil` (OS 190/191) e `Partidas Ida - Dia Útil` (Resumo por Dia, comparação por total).
+- Validado contra a investigação OS 191 × GTFS 0174: Domingo reproduz 364 serviços, 269 células OS>GTFS (+270), 5.304 exatas e 25 sem banda — idêntico ao `codigos_py/investigar_os190_vs_gtfs0174.py`.
+
+### Modificado
+- **Renomeado** `validar_gtfs.py` → `1_validar_gtfs.py` (convenção numerada de pipeline: `0_`, `1_`, `2_`); conteúdo inalterado.
+- `0_validar_gtfs_entrada.py`: import corrigido para o módulo renomeado via `importlib.import_module("1_validar_gtfs")` (o `from validar_gtfs import main` passou a falhar com `ModuleNotFoundError` após o renomeio).
+
+---
+
 ## [3.1.0] - 2026-10-08
 
 ### Adicionado

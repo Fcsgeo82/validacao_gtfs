@@ -3,7 +3,7 @@
 =========================================================================
 Valida a integridade do GTFS de entrada antes do pipeline (processar_gtfs).
 
-Este arquivo apenas repassa os argumentos para validar_gtfs.py --etapa entrada,
+Este arquivo apenas repassa os argumentos para 1_validar_gtfs.py --etapa entrada,
 mantendo o nome de invocação usado pelo pipeline externo. Uso idêntico ao de
 antes:
 
@@ -11,9 +11,10 @@ antes:
     python 0_validar_gtfs_entrada.py            # GTFS auto-detectado na pasta
 """
 
+import importlib
 import sys
 
-from validar_gtfs import main
+main = importlib.import_module("1_validar_gtfs").main
 
 if __name__ == "__main__":
     if "--etapa" not in sys.argv:

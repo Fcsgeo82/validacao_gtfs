@@ -1,13 +1,14 @@
 # Validação GTFS
 
-Dois validadores independentes do pipeline de GTFS do transporte público do Rio:
+Itens numerados do pipeline de validação do GTFS do transporte público do Rio:
 
 | Script | Etapa | O que faz |
 |--------|-------|-----------|
-| `0_validar_gtfs_entrada.py` | **antes** do pipeline | Valida a integridade do GTFS de entrada |
-| `validar_gtfs.py` | **depois** do pipeline | Valida conformidade/integridade do GTFS final e cruza com a tabela de OS |
+| `0_validar_gtfs_entrada.py` | **antes** do pipeline | Wrapper de compatibilidade: valida a integridade do GTFS de entrada |
+| `1_validar_gtfs.py` | **depois** do pipeline | Valida conformidade/integridade do GTFS final e cruza linhas com a OS |
+| `2_comparar_os_gtfs.py` | **depois** do pipeline | Compara o **conteúdo de partidas** da OS × GTFS (todos os tipos de dia) |
 
-Os dois scripts aceitam `--config '<json>'` e mantêm fallback com variáveis hardcoded no topo do arquivo.
+Os scripts aceitam `--config '<json>'` e mantêm fallback com variáveis hardcoded no topo do arquivo.
 
 ---
 
@@ -44,12 +45,12 @@ python 0_validar_gtfs_entrada.py --config '{"BASE_DADOS": "C:/R_SMTR/dados", "gt
 
 ---
 
-## 📊 `validar_gtfs.py`
+## 📊 `1_validar_gtfs.py`
 **Objetivo:** Validação de conformidade e integridade pós-processamento, cruzando o **GTFS final (.zip)** com a **tabela de Ordem de Serviço (OS .csv)** gerada no planejamento.
 
 ### Localização
 
-- Script: `validar_gtfs.py`
+- Script: `1_validar_gtfs.py` (antes `validar_gtfs.py`)
 - Pasta de execução: raiz deste projeto
 
 ### O que é verificado
@@ -113,26 +114,26 @@ Identifica linhas da OS ausentes no GTFS, linhas regulares do GTFS ausentes na O
 Se você colocar o GTFS (`.zip`) e a OS (`tabela_programacao_OS.csv` ou outro `.csv`) na raiz deste projeto, basta rodar:
 
 ```bash
-python validar_gtfs.py
+python 1_validar_gtfs.py
 ```
 O script detecta os arquivos automaticamente.
 
 #### 2. Parâmetros explícitos via linha de comando:
 
 ```bash
-python validar_gtfs.py --gtfs "0169_gtfs_out_26_1E_ret.zip" --os "tabela_programacao_OS.csv" --output-dir "." --estudo "2026-10-01Q"
+python 1_validar_gtfs.py --gtfs "0169_gtfs_out_26_1E_ret.zip" --os "tabela_programacao_OS.csv" --output-dir "." --estudo "2026-10-01Q"
 ```
 
 #### 3. Via argumento `--config` (JSON inline):
 
 ```bash
-python validar_gtfs.py --config '{"gtfs_path": "gtfs.zip", "os_path": "os.csv", "output_dir": ".", "estudo": "2026-10-01Q"}'
+python 1_validar_gtfs.py --config '{"gtfs_path": "gtfs.zip", "os_path": "os.csv", "output_dir": ".", "estudo": "2026-10-01Q"}'
 ```
 
 #### 4. Via arquivo de configuração JSON:
 
 ```bash
-python validar_gtfs.py --config "config.json"
+python 1_validar_gtfs.py --config "config.json"
 ```
 
 ### Formato de Saída
@@ -146,3 +147,51 @@ O script gera um arquivo CSV formatado para importação direta no **Google Shee
   - `status`: `OK`, `AVISO` ou `ERRO`
   - `n_afetados`: quantidade de registros/linhas impactadas
   - `detalhes`: relação de IDs ou exemplos dos registros divergentes
+
+---
+
+## 🔍 `2_comparar_os_gtfs.py`
+**Objetivo:** Verificar se o **conteúdo de partidas** da OS bate com o GTFS — para **todos os tipos de dia**, não só a presença da linha:
+
+| Tipo de dia na OS | `service_id` no GTFS |
+|-------------------|----------------------|
+| Dia Útil | `U_REG` |
+| Sábado | `S_REG` |
+| Domingo | `D_REG` |
+| Ponto Facultativo | `F_REG` |
+
+O mapeamento é configurável via `mapa_dia_servico` no `--config`.
+
+### Como funciona
+
+1. Reexpande as partidas do GTFS por `service_id`: `frequencies.txt` com a convenção `ceil` alinhada a `while t < end` do `7_lista_partidas.py` do `processar_gtfs` (partidas em `[start, end)`, exclui end alinhado) + viagens timetable (sem frequencies) pela primeira saída em `stop_times.txt`.
+2. Classifica cada serviço da OS: `EM_<ID>` (presente no quadro do dia), `SO_EXCEP_EVENTO` (só em `EXCEP`), `SEM_<ID>_NO_GTFS` (com partidas na OS, ausente no GTFS) e `SO_GTFS_NA_OS` (no GTFS, fora da OS).
+3. Compara célula a célula (serviço × sentido × faixa horária): `n_os`, `n_gtfs`, `dif`.
+
+### Entradas (sem hardcode)
+
+- **Padrão**: `OS.csv` e `GTFS.zip` na raiz do projeto.
+- **Fallback de auto-detecção**: `tabela_programacao_OS.csv` > `tabela_*.csv` > outros `.csv` (ignora relatórios); zips válidos (`routes/trips/stops`), mais recente primeiro.
+- Separação (`;`/`,`), encoding (`utf-8-sig`/`latin-1`) e formato de coluna da OS são auto-detectados: `partidas 00:00-01:00 - Dia Útil`, `Partidas 00h à 01h - Dia Útil` e `Partidas Ida - Dia Útil` (Resumo por Dia, comparado por total).
+
+### Como Executar
+
+```bash
+# Auto-detecção (OS.csv/GTFS.zip ou fallback na raiz)
+python 2_comparar_os_gtfs.py
+
+# Arquivos explícitos
+python 2_comparar_os_gtfs.py --os "os.csv" --gtfs "gtfs.zip" --output-dir "." --prefixo "meu_estudo"
+
+# Config (JSON inline ou arquivo)
+python 2_comparar_os_gtfs.py --config '{"os_path": "os.csv", "gtfs_path": "gtfs.zip", "formula": "floor", "tolerancia": 0}'
+```
+
+Chaves do `--config`: `os_path`, `gtfs_path`, `output_dir`, `prefixo`, `formula` (`floor`|`floor_mais_1`|`ceil`), `tolerancia` (partidas por célula), `encoding_os`, `fail_se_ausente` (padrão `true`), `mapa_dia_servico`.
+
+### Formato de Saída
+
+- `relatorio_<prefixo>_servicos.csv` — `tipo_dia, servico, consorcio, classificacao, partidas_os, partidas_gtfs_reexp, vista_os, services_gtfs`
+- `relatorio_<prefixo>_celulas.csv` — `tipo_dia, servico, sentido, faixa, n_os, n_gtfs, dif`
+- `resumo_<prefixo>.txt` — resumo legível por tipo de dia
+- **Exit code**: `0` = OK; `1` = entradas ausentes ou serviços da OS sem cobertura no GTFS (informativo com `fail_se_ausente=false`). Divergências de célula são AVISO e não falham.

@@ -9,6 +9,9 @@ __pycache__/
 *.csv
 *.json
 
+# Saída em TXT do 2_comparar_os_gtfs.py (regenerável)
+resumo_*.txt
+
 # Other potential output files
 *.log
 *.tmp

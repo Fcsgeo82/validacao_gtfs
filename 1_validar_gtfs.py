@@ -57,15 +57,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # Etapa de entrada (pré-pipeline)
 BASE_DADOS = "C:/R_SMTR/dados"
 PASTA_RESULTADOS = str(SCRIPT_DIR)  # relatórios detalhados ficam na pasta do projeto
-ANO_GTFS = "2027"
-MES_GTFS = "08"
-ESTUDO_GTFS = "04"
+ANO_GTFS = "2026"
+MES_GTFS = "10"
+ESTUDO_GTFS = "02"
 GTFS_PROCESSAR = "sppo"
 
 # Etapa de saída (pós-pipeline)
-GTFS_PATH = r"C:\github_repositories\validacao\gtfs.zip"
-OS_PATH = r"C:\github_repositories\validacao\os.csv"
-OUTPUT_DIR = r"C:\github_repositories\validacao"
+GTFS_PATH = r"C:\github_repositories\validacao_gtfs\GTFS.zip"
+OS_PATH = r"C:\github_repositories\validacao_gtfs\OS.csv"
+OUTPUT_DIR = r"C:\github_repositories\validacao_gtfs"
 ESTUDO = "validacao_gtfs"
 
 # Relatórios consolidados (pasta do projeto)
